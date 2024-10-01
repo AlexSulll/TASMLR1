@@ -2,15 +2,15 @@
 .186
 .stack      100h
 .data
-    A           db      73
-    B           db      73
-    C           db      10
-    countA      db      -128d
-    countB      db      -128d
-    countC      db      -128d
-    idfile      dw      ?
     fileName    db      'overflow.txt',0
-    zapis       db      'A = +000, B = +000, C = +000' ;28 simvolov
+    zapis       db      'A = 0000, B = 0000, C = 0000', 0ah ;29 simvolov
+    A           db      ?
+    B           db      ?
+    C           db      ?
+    countA      db      ?
+    countB      db      ?
+    countC      db      ?
+    idfile      dw      ?
 
 .code
 Start:
@@ -19,22 +19,27 @@ Start:
     mov     al,[C] ; al = C
     or      al,[A] ; A = C
     jnz     Answer ; if A != 0 and C != 0 goto Answer
-    mov     [a],-128
-    
+    mov     [A],-128
+    mov     [countA],255
     
 CreateFile:
     mov     ah,3Ch
     mov     cx,00100000b
     mov     dx,offset fileName
     int     21h
-    mov     idfile,ax
+    mov     [idfile],ax
+    mov     di,[idfile]
    
-
 a_loop:
+    mov     [countB],255
+    mov     [B],-128
     
 b_loop:
+    mov     [countC],255
+    mov     [C],-128
     
 c_loop:
+    ;go to answer
     
 Answer:
     ;znamenatel
@@ -44,42 +49,46 @@ Answer:
     xchg    ax,bx   ; ax-A,bx-B
     cbw             ; al to ax
     imul    bx      ; ax=A*B(ax*bx)
-    imul    ax,6    ; ax = 6*ax (6*A*B)
-    mov     cl,C    ; cl = C
-    xchg    ax,cx   ; ax(al) - C,cx - 6*A*B
+    sal     ax,1    ; ax = 2*ax
+    mov     cx,ax   ; cx = 2*ax
+    sal     ax,1    ; ax = 4*ax
+    add     cx,ax   ; cx = cx + ax (6*A*B)
+    mov     al,C    ; al = C
     cbw             ; al to cbw ax
-    add     cx,ax   ;cx = cx + ax
-    jo  Write_A     ;TODO!!!
+    add     cx,ax   ; cx = cx + ax
+    jcxz    Write_A
+    jo      Write_A ;TODO!!!
     ;chislitel
-    mov     ax,28   ; ax = 28
-    imul    bx      ; ax = ax * bx
-    imul    bx
-    imul    bx      ; ax = 28*b^3
+    mov     ax,bx   ; ax = bx(B)
+    imul    bx      ; ax = ax * bx (B^2)
+    imul    bx      ; ax = ax * bx (B^3)
+    mov     bx,ax   ; bx = B^3
+    sal     ax,5    ; ax = 32*ax
+    sal     bx,2    ; bx = 4*bx (4*ax)
+    sub     ax,bx   ; ax = 28*B^3
     mov     bl,C
     xchg    ax,bx   ; bx=28*b^3, al = C
     cbw             ; ax
     add     ax,bx
     sub     ax,19
     cwd             ; dx:ax = ax
-    idiv    cx
+    idiv    cx      ; ax = answer
+    or      di,00000h
+    jnz     not_exit
+    jmp     Exit
     
-Write_A:
-    mov     al,A
-    cmp     al,0
-    jl      otr_A
-    jmp     Chislo_A
+not_exit:
+    jmp next_itter
 
-Write_B:
-    mov     al,B
-    cmp     al,0
-    jl      otr_B
-    jmp     Chislo_B
-    
-Write_C:
-    mov     al,C
-    cmp     al,0
-    jl      otr_C
-    jmp     Chislo_C
+Write_A:
+    mov     [zapis + 4],"+"
+    mov     al,A
+    test    al,080h
+    jns     Chislo_A
+    neg     al
+    mov     [zapis + 4],"-"
+    ;cmp     al,0
+    ;jl      otr_A
     
 Chislo_A:
     aam
@@ -91,9 +100,17 @@ Chislo_A:
     mov     [zapis + 6], al
     or      ah,30h
     mov     [zapis + 5], ah
+       
+Write_B:
+    mov     [zapis + 14],"+"
+    mov     al,B
+    test    al,080h
+    jns     Chislo_B
+    neg     al
+    mov     [zapis + 14],"-"
+    ;cmp     al,0
+    ;jl      otr_B
     
-    jmp     Write_B
-
 Chislo_B:
     aam
     or      al,30h
@@ -105,7 +122,15 @@ Chislo_B:
     or      ah,30h
     mov     [zapis + 15], ah
     
-    jmp     Write_C
+Write_C:
+    mov     [zapis + 24],"+"
+    mov     al,C
+    test    al,080h
+    jns     Chislo_C
+    neg     al
+    mov     [zapis + 24],"-"
+    ;cmp     al,0
+    ;jl      otr_C
 
 Chislo_C:
     aam
@@ -117,28 +142,50 @@ Chislo_C:
     mov     [zapis + 26], al
     or      ah,30h
     mov     [zapis + 25], ah
-    
-    jmp     Write
-    
+      
 Write:
     mov     ah,40h
     mov     bx,idfile
     mov     dx,offset zapis
-    mov     cx,28
+    mov     cx,29
     int     21h
-    jmp     Exit
+    jmp     next_itter
 
-otr_A:
-    mov     [zapis + 4],"-"
-    jmp     Chislo_A
+;otr_A:
+;    mov     [zapis + 4],"-"
+;    jmp     Chislo_A
+;    
+;otr_B:
+;    mov     [zapis + 14],"-"
+;    jmp     Chislo_B
+;    
+;otr_C:
+;    mov     [zapis + 24],"-"
+;    jmp     Chislo_C
     
-otr_B:
-    mov     [zapis + 14],"-"
-    jmp     Chislo_B
+next_itter:
+    inc     [C]
+    dec     [countC]
+    cmp     [countC],-1
+    jz      cCount_0
+    jmp     c_loop
+        
+cCount_0:  
+    inc     [B]
+    dec     [countB]
+    cmp     [countB],-1
+    jz      bCount_0
+    jmp     b_loop
     
-otr_C:
-    mov     [zapis + 24],"-"
-    jmp     Chislo_C
+bCount_0:
+    inc     [A]
+    dec     [countA]
+    cmp     [countA],-1
+    jz      aCount_0
+    jmp     a_loop
+    
+aCount_0:
+    
     
 Exit:
     mov     ah,04ch
