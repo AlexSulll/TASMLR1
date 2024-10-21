@@ -21,8 +21,8 @@ Start:
     or      al,bl
     jnz     Answer   
 CreateFile:
-    mov     ah,3Ch
-    mov     cx,00100000b
+    mov     ah,03Ch
+    xor     cx,cx
     mov     dx,offset fileName
     int     21h
     mov     cl,al  
@@ -33,52 +33,54 @@ setvalue:
 Answer:
     mov     al,bh
     cbw
-    mov     dl,bl
-    xchg    ax,dx
-    cbw
     mov     bp,ax
-    sal     bp,1
-    sal     ax,2
-    add     ax,bp ;ax = 6ab
-    
-    
-    
-    ;mov     al,B
-    ;cbw
-    ;mov     bl,A
-    ;xchg    ax,bx   ; ax-A,bx-B
-    ;cbw             ; al to ax
-    ;imul    bx      ; ax=A*B(ax*bx)
-    ;sal     ax,1    ; ax = 2*ax
-    ;mov     cx,ax   ; cx = 2*ax
-    ;sal     ax,1    ; ax = 4*ax
-    ;add     cx,ax   ; cx = cx + ax (6*A*B)
-    ;mov     al,C    ; al = C
-    ;cbw             ; al to cbw ax
-    ;add     cx,ax   ; cx = cx + ax
-    ;jcxz    Write_A
-    ;jo      Write_A ;TODO!!!
-    ;chislitel
-    ;mov     ax,bx   ; ax = bx(B)
-    ;imul    bx      ; ax = ax * bx (B^2)
-    ;imul    bx      ; ax = ax * bx (B^3)
-    ;mov     bx,ax   ; bx = B^3
-    ;sal     ax,5    ; ax = 32*ax
-    ;sal     bx,2    ; bx = 4*bx (4*ax)
-    ;sub     ax,bx   ; ax = 28*B^3
-    ;mov     bl,C
-    ;xchg    ax,bx   ; bx=28*b^3, al = C
-    ;cbw             ; ax
-    ;add     ax,bx
-    ;sub     ax,19
-    ;cwd             ; dx:ax = ax
-    ;idiv    cx      ; ax = answer
-    ;or      di,00000h
-    ;jnz     not_exit
-    ;jmp     Exit  
-   jmp Write_A 
-not_exit:
-    jmp next_itter
+    sal     bp,2
+    sal     ax,1
+    add     bp,ax
+    mov     al,bl
+    cbw
+    imul    bp
+    or      dx,dx
+    jz      positive_6ab
+    cmp     dx, 0ffffh
+    jz      negative_6ab
+    jmp     SHORT Write_A
+positive_6ab:
+    xchg    si,ax
+    mov     al,ch
+    cbw
+    or      ax,ax
+    js      negative_c1
+    add     si,ax
+    js      Write_A
+    jc      Write_A
+    jmp     cycle_or_params    
+negative_6ab:    
+    xchg    si,ax
+    mov     al,ch
+    cbw
+    or      ax,ax
+    js      negative_c2
+    add     si,ax
+    lahf
+    test    ah,10000001b
+    jz      Write_A
+    jmp     cycle_or_params
+negative_c1:
+    neg     ax
+    sub     si,ax
+    jc      cycle_or_params
+    js      Write_A
+    jmp     cycle_or_params
+negative_c2:
+    neg     ax
+    sub     si,ax
+    jns     Write_A
+    jc      Write_A
+cycle_or_params:
+    cmp     cl,0
+    jnz     jump_to_next_itter
+    jmp     jump_to_chislitel
 Write_A:
     mov     al,bl
     cmp     al,0
@@ -124,6 +126,9 @@ Chislo_C:
     mov     [zapis + 26], al
     or      ah,30h
     mov     [zapis + 25], ah
+    jmp     Write
+jump_to_next_itter:
+    jmp     next_itter
 Write:
     mov     bp,cx
     mov     di,bx
@@ -148,6 +153,8 @@ otr_C:
     neg     al
     mov     [zapis + 24],"-"
     jmp     Chislo_C
+jump_to_chislitel:
+    jmp     chislitel
 next_itter:
     cmp     ch,MAX
     jl      c_iter
@@ -165,8 +172,35 @@ c_iter:
     inc     ch
 not_max:
     jmp     Answer
+chislitel:
+    mov     al,ch
+    cbw
+    mov     bp,ax
+    mov     al,bh
+    cbw
+    mov     di,ax
+    mov     dx,ax
+    sal     di,5
+    sal     dx,2
+    sub     di,dx
+    imul    ax
+    imul    di
+    sub     bp,19
+    jns     pos_c
+    jz      division
+neg_c:
+    neg     bp
+    sub     ax,bp
+    sbb     dx,0
+    jmp     division
+pos_c:
+    add     ax,bp
+    adc     dx,0
+division:
+    idiv    si
+    mov     [result],ax
 Exit:
     mov     ah,04ch
     mov     al,0
     int     21h
-    end     Start   
+    end     Start
