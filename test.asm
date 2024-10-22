@@ -79,13 +79,15 @@ negative_c2:
     jc      Write_A
 cycle_or_params:
     cmp     cl,0
-    jnz     jump_to_next_itter
+    jnz     jump_to_nextitter
     jmp     jump_to_chislitel
 Write_A:
     mov     al,bl
-    cmp     al,0
-    jl      otr_A
     mov     [zapis + 4],"+"
+    or      al,al
+    jge     Chislo_A
+    neg     al
+    mov     [zapis + 4],"-"
 Chislo_A:
     aam
     or      al,30h
@@ -98,9 +100,14 @@ Chislo_A:
     mov     [zapis + 5], ah    
 Write_B:
     mov     al,bh
-    cmp     al,0
-    jl      otr_B
-    mov     [zapis + 14],"+" 
+    mov     [zapis + 14],"+"
+    or      al,al
+    jge     Chislo_B
+    neg     al
+    mov     [zapis + 14],"-"
+    jmp     Chislo_B
+jump_to_nextitter:
+   jmp      jump_to_next_itter2
 Chislo_B:
     aam
     or      al,30h
@@ -113,9 +120,11 @@ Chislo_B:
     mov     [zapis + 15], ah
 Write_C:
     mov     al,ch
-    cmp     al,0
-    jl      otr_C
     mov     [zapis + 24],"+"
+    or      al,al
+    jge     Chislo_C
+    neg     al
+    mov     [zapis + 24],"-"
 Chislo_C:
     aam
     or      al,30h
@@ -127,7 +136,7 @@ Chislo_C:
     or      ah,30h
     mov     [zapis + 25], ah
     jmp     Write
-jump_to_next_itter:
+jump_to_next_itter2:
     jmp     next_itter
 Write:
     mov     bp,cx
@@ -141,18 +150,6 @@ Write:
     mov     cx,bp
     mov     bx,di
     jmp     next_itter
-otr_A:
-    neg     al
-    mov     [zapis + 4],"-"
-    jmp     Chislo_A
-otr_B:
-    neg     al
-    mov     [zapis + 14],"-"
-    jmp     Chislo_B
-otr_C:
-    neg     al
-    mov     [zapis + 24],"-"
-    jmp     Chislo_C
 jump_to_chislitel:
     jmp     chislitel
 next_itter:
@@ -203,4 +200,4 @@ Exit:
     mov     ah,04ch
     mov     al,0
     int     21h
-    end     Start
+    end     Start   
